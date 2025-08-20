@@ -68,21 +68,31 @@ int main() {
     std::mt19937 rng(rd());
 
     for (size_t i = 0; i + 1 < lines.size(); ++i) {
-        if (lines[i].rfind(L"Câu hỏi:", 0) == 0) {
+        // Detect a question line
+        if (lines[i].rfind(L"Câu hỏi:", 0) == 0 || !isOptionLine(lines[i])) {
             Question q;
-            q.text = trim(lines[i].substr(8));
+            if (lines[i].rfind(L"Câu hỏi:", 0) == 0) {
+                q.text = trim(lines[i].substr(8)); // Remove "Câu hỏi:"
+            }
+            else {
+                q.text = trim(lines[i]);           // Use line directly as question
+            }
+
             std::map<std::wstring, int> option_map;
             std::vector<std::wstring> options_raw;
             size_t j = i + 1;
-            for (; j < lines.size() && !(lines[j].rfind(L"Câu hỏi:", 0) == 0); ++j) {
+
+            // Collect options until next question line or break
+            for (; j < lines.size(); ++j) {
+                if (lines[j].rfind(L"Câu hỏi:", 0) == 0 || !isOptionLine(lines[j])) {
+                    break; // next question detected
+                }
                 if (isOptionLine(lines[j])) {
                     option_map[lines[j]]++;
                     options_raw.push_back(lines[j]);
                 }
-                else {
-                    break;
-                }
             }
+
             // Remove duplicates
             std::vector<std::wstring> unique_options;
             std::map<wchar_t, std::wstring> letter_to_option;
@@ -93,18 +103,23 @@ int main() {
                     unique_options.push_back(opt);
                 }
             }
+
             // Shuffle options
             std::shuffle(unique_options.begin(), unique_options.end(), rng);
             q.options = unique_options;
+
+            // Mark correct answers (duplicates)
             for (const auto& [opt, count] : option_map) {
                 if (count > 1 && iswalpha(opt[0])) {
                     q.correct.push_back(opt[0]);
                 }
             }
+
             questions.push_back(q);
-            i = j - 1;
+            i = j - 1; // continue after this question
         }
     }
+
 
     std::ofstream outfile("quiz.html");
     outfile << "<!DOCTYPE html><html lang=\"vi\"><head><meta charset=\"UTF-8\">\n";
